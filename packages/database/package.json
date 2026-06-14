@@ -4,7 +4,7 @@
   "scripts": {
     "db:migrate": "dotenv -- drizzle-kit migrate",
     "db:generate": "dotenv -- drizzle-kit generate",
-    "dev": "dotenv -- drizzle-kit studio"
+    "db:studio": "dotenv -- drizzle-kit studio"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

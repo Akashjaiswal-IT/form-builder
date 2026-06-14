@@ -1,5 +1,4 @@
 import { router } from "./trpc";
-
 import { healthRouter } from "./routes/health/route";
 import { authRouter } from "./routes/auth/route";
 
@@ -10,3 +9,5 @@ export const serverRouter = router({
 
 export { createContext } from "./context";
 export type ServerRouter = typeof serverRouter;
+
+export { authenticatedUserSchema, getAuthenticationMethodOutputSchema } from "@repo/services/user/model";

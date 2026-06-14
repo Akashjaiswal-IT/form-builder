@@ -5,6 +5,7 @@
     "outDir": "./dist",
 
     "moduleResolution": "Node",
+    "ignoreDeprecations": "6.0",
     "module": "CommonJS",
 
     // We don't need these for our final build

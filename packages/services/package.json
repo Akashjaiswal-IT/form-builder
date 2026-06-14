@@ -5,13 +5,20 @@
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/nodemailer": "^8.0.1",
     "dotenv-cli": "^11.0.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
     "@repo/database": "workspace:*",
     "@repo/logger": "workspace:*",
+    "@trpc/server": "^11.8.1",
+    "bcryptjs": "^3.0.3",
+    "drizzle-orm": "^0.45.1",
     "google-auth-library": "^10.5.0",
+    "imagekit": "^6.0.0",
+    "nodemailer": "^8.0.11",
     "zod": "^4.3.5"
   }
 }

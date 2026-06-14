@@ -3,5 +3,33 @@
     {
       "mode": "auto"
     }
-  ]
+  ],
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.turbo": true,
+    "pnpm-lock.yaml": true,
+    "**/.eslintrc.cjs": true,
+    "**/tsconfig.tsbuildinfo": true,
+    ".pnpm-store": true,
+    "**/.next": true,
+    "zip.sh": true,
+    "z.note": true,
+    "**/tsconfig.json": true,
+    "**/tsup.config.ts": true,
+    "apps/web/.gitignore": true,
+    "apps/web/components.json": true,
+    "apps/web/eslint.config.js": true,
+    "**/next-env.d.ts": true,
+    "apps/web/postcss.config.mjs": true,
+    "apps/web/README.md": true,
+    ".gitignore": true,
+    ".npmrc": true,
+    "docker-compose.yml": true,
+    "pnpm-workspace.yaml": true,
+    "prettier.config.js": true,
+    "README.md": true,
+    "setup.sh": true,
+    "turbo.json": true,
+    "project.env": true
+  }
 }
