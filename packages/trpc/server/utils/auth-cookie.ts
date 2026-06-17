@@ -28,11 +28,18 @@ function serializeCookie(
   const attributes = [
     `${encodeURIComponent(name)}=${encodeURIComponent(value)}`,
     `Path=${path}`,
-    `SameSite=${sameSite}`,
   ];
 
+  // If the cookie is secure (production), we must use SameSite=None
+  // for cross‑origin requests. Otherwise keep the caller's preference.
+  if (secure) {
+    attributes.push("Secure");
+    attributes.push("SameSite=None");
+  } else {
+    attributes.push(`SameSite=${sameSite}`);
+  }
+
   if (httpOnly) attributes.push("HttpOnly");
-  if (secure) attributes.push("Secure");
   if (expires) attributes.push(`Expires=${expires.toUTCString()}`);
   if (typeof maxAgeSeconds === "number") {
     attributes.push(`Max-Age=${maxAgeSeconds}`);
