@@ -8,7 +8,7 @@ import { logger } from "@repo/logger";
 import { authTokensTable, userSessionsTable, usersTable } from "@repo/database/schema";
 import { env } from "../env";
 import { mailService } from "../mail";
-import { googleOAuth2Client } from "../clients/google-oauth";
+import { getGoogleOAuth2Client } from "../clients/google-oauth";
 import { AuthenticatedUserSchema, GetAuthenticationMethodOutputSchema } from "./model";
 
 const BCRYPT_SALT_ROUNDS = 12;
@@ -69,7 +69,7 @@ class UserService {
       env.GOOGLE_OAUTH_CLIENT_SECRET &&
       env.GOOGLE_OAUTH_REDIRECT_URI
     ) {
-      const authUrl = googleOAuth2Client.generateAuthUrl({
+      const authUrl = getGoogleOAuth2Client().generateAuthUrl({
         access_type: "offline",
         scope: ["profile", "email"],
       });
@@ -95,7 +95,7 @@ class UserService {
     message: string;
   }> {
     // 1. Exchange authorization code for tokens
-    const { tokens } = await googleOAuth2Client.getToken(code);
+    const { tokens } = await getGoogleOAuth2Client().getToken(code);
     const idToken = tokens.id_token;
     if (!idToken) {
       throw new TRPCError({
@@ -105,7 +105,7 @@ class UserService {
     }
 
     // 2. Verify the ID token
-    const ticket = await googleOAuth2Client.verifyIdToken({
+    const ticket = await getGoogleOAuth2Client().verifyIdToken({
       idToken,
       audience: env.GOOGLE_OAUTH_CLIENT_ID,
     });
