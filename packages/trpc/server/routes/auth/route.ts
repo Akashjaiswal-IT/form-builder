@@ -12,7 +12,6 @@ import {
   readCookie,
   setAuthSessionCookie,
 } from "../../utils/auth-cookie";
-import { env } from "@repo/services/env";
 
 const TAGS = ["Authentication"];
 const getPath = generatePath("/authentication");
@@ -176,8 +175,8 @@ export const authRouter = router({
     )
     .query(() => {
       return imageKitService.getUploadAuthenticationParameters({
-        publicKey: env.IMAGEKIT_PUBLIC_KEY,
-        urlEndpoint: env.IMAGEKIT_URL_ENDPOINT,
+        publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
+        urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
       });
     }),
 
