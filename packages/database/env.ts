@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const envSchema = z.object({
-  DATABASE_URL: z.string().describe("DB URL"),
+  DATABASE_URL: z.string().optional().describe("DB URL"),
 });
 
 function createEnv(env: NodeJS.ProcessEnv) {
