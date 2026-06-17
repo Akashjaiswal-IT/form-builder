@@ -8,16 +8,16 @@ const envSchema = z.object({
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
   GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
 
-  SMTP_HOST: z.string(),
-  SMTP_PORT: z.coerce.number().int().positive(),
-  SMTP_USER: z.string(),
-  SMTP_PASSWORD: z.string(),
-  SMTP_FROM_NAME: z.string(),
-  SMTP_FROM_EMAIL: z.string().email(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_FROM_NAME: z.string().optional(),
+  SMTP_FROM_EMAIL: z.string().email().optional(),
 
-  IMAGEKIT_PUBLIC_KEY: z.string(),
-  IMAGEKIT_PRIVATE_KEY: z.string(),
-  IMAGEKIT_URL_ENDPOINT: z.string().url(),
+  IMAGEKIT_PUBLIC_KEY: z.string().optional(),
+  IMAGEKIT_PRIVATE_KEY: z.string().optional(),
+  IMAGEKIT_URL_ENDPOINT: z.string().url().optional(),
 });
 
 function createEnv(env: NodeJS.ProcessEnv) {
