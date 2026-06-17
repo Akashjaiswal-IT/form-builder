@@ -6,7 +6,6 @@ import { TRPCError } from "@trpc/server";
 import { db } from "@repo/database";
 import { logger } from "@repo/logger";
 import { authTokensTable, userSessionsTable, usersTable } from "@repo/database/schema";
-import { env } from "../env";
 import { mailService } from "../mail";
 import { getGoogleOAuth2Client } from "../clients/google-oauth";
 import { AuthenticatedUserSchema, GetAuthenticationMethodOutputSchema } from "./model";
@@ -65,14 +64,14 @@ class UserService {
     ];
 
     if (
-      env.GOOGLE_OAUTH_CLIENT_ID &&
-      env.GOOGLE_OAUTH_CLIENT_SECRET &&
-      env.GOOGLE_OAUTH_REDIRECT_URI
+      process.env.GOOGLE_OAUTH_CLIENT_ID &&
+      process.env.GOOGLE_OAUTH_CLIENT_SECRET &&
+      process.env.GOOGLE_OAUTH_REDIRECT_URI
     ) {
       const client = getGoogleOAuth2Client({
-        clientId: env.GOOGLE_OAUTH_CLIENT_ID,
-        clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
-        redirectUri: env.GOOGLE_OAUTH_REDIRECT_URI,
+        clientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+        redirectUri: process.env.GOOGLE_OAUTH_REDIRECT_URI,
       });
       const authUrl = client.generateAuthUrl({
         access_type: "offline",
@@ -100,9 +99,9 @@ class UserService {
     message: string;
   }> {
     const client = getGoogleOAuth2Client({
-      clientId: env.GOOGLE_OAUTH_CLIENT_ID,
-      clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
-      redirectUri: env.GOOGLE_OAUTH_REDIRECT_URI,
+      clientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+      redirectUri: process.env.GOOGLE_OAUTH_REDIRECT_URI,
     });
 
     // 1. Exchange authorization code for tokens
@@ -118,7 +117,7 @@ class UserService {
     // 2. Verify the ID token
     const ticket = await client.verifyIdToken({
       idToken,
-      audience: env.GOOGLE_OAUTH_CLIENT_ID,
+      audience: process.env.GOOGLE_OAUTH_CLIENT_ID,
     });
     const payload = ticket.getPayload();
     if (!payload || !payload.email) {
