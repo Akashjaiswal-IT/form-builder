@@ -13,7 +13,9 @@ export interface FullFormPayload {
     settings: FormSettings | null;
     theme: FormTheme | null;
   };
-  pages: Array<FormPage & { fields?: RawFormField[] }>;
+  // Omit<FormPage, "fields"> prevents the intersection from collapsing
+  // RawFormField back to FormField
+  pages: Array<Omit<FormPage, "fields"> & { fields?: RawFormField[] }>;
   fields?: RawFormField[];
 }
 
@@ -54,7 +56,7 @@ export function toRenderableForm(payload: FullFormPayload): RenderableForm {
 
   // Normalise form‑level settings and theme
   const settings = normaliseJson(payload.form.settings);
-  const theme    = normaliseJson(payload.form.theme);
+  const theme = normaliseJson(payload.form.theme);
 
   return {
     id: payload.form.id,

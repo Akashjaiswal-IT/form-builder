@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { PublicFormRenderer } from "~/components/forms/renderer/public-form-renderer";
-import { toRenderableForm } from "~/lib/form-data";
+import { toRenderableForm, type FullFormPayload } from "~/lib/form-data";
 import { api } from "~/trpc/server";
 import { userService } from "@repo/trpc/server/services";
 
@@ -43,5 +43,9 @@ export default async function PublicFormPage({
     }
   }
 
-  return <PublicFormRenderer form={toRenderableForm(result)} />;
+  return (
+    <PublicFormRenderer
+      form={toRenderableForm(result as unknown as FullFormPayload)}
+    />
+  );
 }
