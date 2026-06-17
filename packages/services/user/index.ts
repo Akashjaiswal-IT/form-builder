@@ -50,7 +50,7 @@ function buildWebUrl(pathname: string, token: string) {
 
 class UserService {
   // ---------------------------------------------------------------
-  // AUTHENTICATION METHODS (updated)
+  // AUTHENTICATION METHODS
   // ---------------------------------------------------------------
   public async getAuthenticationMethods(): Promise<
     ReadonlyArray<GetAuthenticationMethodOutputSchema>
@@ -63,13 +63,17 @@ class UserService {
       },
     ];
 
-    // Include Google OAuth if all required env vars are provided
     if (
       env.GOOGLE_OAUTH_CLIENT_ID &&
       env.GOOGLE_OAUTH_CLIENT_SECRET &&
       env.GOOGLE_OAUTH_REDIRECT_URI
     ) {
-      const authUrl = getGoogleOAuth2Client().generateAuthUrl({
+      const client = getGoogleOAuth2Client({
+        clientId: env.GOOGLE_OAUTH_CLIENT_ID,
+        clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+        redirectUri: env.GOOGLE_OAUTH_REDIRECT_URI,
+      });
+      const authUrl = client.generateAuthUrl({
         access_type: "offline",
         scope: ["profile", "email"],
       });
@@ -86,7 +90,7 @@ class UserService {
   }
 
   // ---------------------------------------------------------------
-  // SIGN IN WITH GOOGLE (new)
+  // SIGN IN WITH GOOGLE
   // ---------------------------------------------------------------
   public async signInWithGoogle(code: string): Promise<{
     sessionToken: string;
@@ -94,8 +98,14 @@ class UserService {
     user: AuthenticatedUserSchema;
     message: string;
   }> {
+    const client = getGoogleOAuth2Client({
+      clientId: env.GOOGLE_OAUTH_CLIENT_ID,
+      clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+      redirectUri: env.GOOGLE_OAUTH_REDIRECT_URI,
+    });
+
     // 1. Exchange authorization code for tokens
-    const { tokens } = await getGoogleOAuth2Client().getToken(code);
+    const { tokens } = await client.getToken(code);
     const idToken = tokens.id_token;
     if (!idToken) {
       throw new TRPCError({
@@ -105,7 +115,7 @@ class UserService {
     }
 
     // 2. Verify the ID token
-    const ticket = await getGoogleOAuth2Client().verifyIdToken({
+    const ticket = await client.verifyIdToken({
       idToken,
       audience: env.GOOGLE_OAUTH_CLIENT_ID,
     });
@@ -137,13 +147,12 @@ class UserService {
       .then((rows) => rows[0] ?? null);
 
     if (!user) {
-      // Create new user with Google provider
       const [newUser] = await db
         .insert(usersTable)
         .values({
           fullName,
           email,
-          emailVerified: true, // Google accounts are pre-verified
+          emailVerified: true,
           profileImageUrl,
           authenticationProvider: "GOOGLE_OAUTH",
           passwordHash: null,
@@ -164,7 +173,6 @@ class UserService {
       }
       user = newUser;
     } else {
-      // Update profile image if we got a new one
       if (profileImageUrl) {
         await db
           .update(usersTable)
@@ -268,9 +276,6 @@ class UserService {
     };
   }
 
-  // ... (all remaining methods stay exactly the same as your current file) ...
-  // include every method below this point exactly as they are now
-
   public async signInWithEmailAndPassword({
     email,
     password,
@@ -283,7 +288,6 @@ class UserService {
     user: AuthenticatedUserSchema;
     message: string;
   }> {
-    // existing code unchanged
     const normalizedEmail = normalizeEmail(email);
     
     const [user] = await db
@@ -350,7 +354,6 @@ class UserService {
   public async getAuthenticatedUserBySessionToken(
     sessionToken: string | undefined,
   ): Promise<AuthenticatedUserSchema | null> {
-    // unchanged
     if (!sessionToken) return null;
 
     const [user] = await db
@@ -376,7 +379,6 @@ class UserService {
   }
 
   async updateCurrentUser(userId: string, fullName: string): Promise<AuthenticatedUserSchema> {
-    // unchanged
     const [user] = await db
       .update(usersTable)
       .set({ fullName: fullName.trim(), updatedAt: new Date() })
@@ -397,7 +399,6 @@ class UserService {
   }
 
   public async signOutBySessionToken(sessionToken: string | undefined) {
-    // unchanged
     if (!sessionToken) return;
 
     await db
@@ -407,7 +408,6 @@ class UserService {
   }
 
   public async signOutAllSessionsForUser(userId: string) {
-    // unchanged
     await db
       .update(userSessionsTable)
       .set({ revokedAt: new Date() })
@@ -415,7 +415,6 @@ class UserService {
   }
 
   public async verifyEmailAddress(token: string): Promise<{ message: string }> {
-    // unchanged
     const tokenRecord = await this.getActiveAuthToken({ token, type: "EMAIL_VERIFICATION" });
     await db
       .update(usersTable)
@@ -426,7 +425,6 @@ class UserService {
   }
 
   public async resendEmailVerification(email: string): Promise<{ message: string }> {
-    // unchanged
     const [user] = await db
       .select({
         id: usersTable.id,
@@ -462,7 +460,6 @@ class UserService {
   }
 
   public async requestPasswordReset(email: string): Promise<{ message: string }> {
-    // unchanged
     const [user] = await db
       .select({
         id: usersTable.id,
@@ -503,7 +500,6 @@ class UserService {
     token: string;
     newPassword: string;
   }): Promise<{ message: string }> {
-    // unchanged
     const tokenRecord = await this.getActiveAuthToken({ token, type: "PASSWORD_RESET" });
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
     const now = new Date();
@@ -531,7 +527,6 @@ class UserService {
     profileImageUrl: string;
     profileImageFileId?: string;
   }): Promise<AuthenticatedUserSchema> {
-    // unchanged
     const [user] = await db
       .update(usersTable)
       .set({ profileImageUrl, profileImageFileId, updatedAt: new Date() })
@@ -551,9 +546,6 @@ class UserService {
     return this.toAuthenticatedUser(user);
   }
 
-  // ---------------------------------------------------------------
-  // PRIVATE HELPERS (unchanged)
-  // ---------------------------------------------------------------
   private async sendVerificationMailForUser({
     userId,
     fullName,
