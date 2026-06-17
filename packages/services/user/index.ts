@@ -43,7 +43,8 @@ function addDays(date: Date, days: number) {
 }
 
 function buildWebUrl(pathname: string, token: string) {
-  const url = new URL(pathname, env.WEB_APP_URL);
+  const base = process.env.WEB_APP_URL || "http://localhost:3000";
+  const url = new URL(pathname, base);
   url.searchParams.set("token", token);
   return url.toString();
 }
