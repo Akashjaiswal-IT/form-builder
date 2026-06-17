@@ -17,6 +17,12 @@ import { isFormAcceptingResponses } from "../utils";
 import type { SubmitResponseInput } from "../model";
 import type { FormServiceDependencies } from "./types";
 
+// Safe fallback for the frontend build where the services env module
+// resolves to the database env (which only has DATABASE_URL).
+const WEB_APP_URL =
+  (env as Record<string, string | undefined>).WEB_APP_URL ||
+  "http://localhost:3000";
+
 export class ResponseService {
   constructor(private deps: FormServiceDependencies) {}
 
@@ -131,7 +137,7 @@ export class ResponseService {
           await mailService.sendMail({
             to: formOwner.email,
             subject: `New response for "${form.title}"`,
-            text: `Hi ${formOwner.fullName},\n\nA new response was submitted for your form "${form.title}".\n\n${fieldSummary}\n\nView all responses: ${env.WEB_APP_URL}/forms/${form.id}/responses`,
+            text: `Hi ${formOwner.fullName},\n\nA new response was submitted for your form "${form.title}".\n\n${fieldSummary}\n\nView all responses: ${WEB_APP_URL}/forms/${form.id}/responses`,
             html: `
               <div style="font-family: Arial, sans-serif; line-height: 1.6;">
                 <h2>New response for "${form.title}"</h2>
@@ -143,7 +149,7 @@ export class ResponseService {
                     return `<li><strong>${field?.label ?? name}:</strong> ${value}</li>`;
                   })
                   .join("")}</ul>
-                <p><a href="${env.WEB_APP_URL}/forms/${form.id}/responses">View all responses</a></p>
+                <p><a href="${WEB_APP_URL}/forms/${form.id}/responses">View all responses</a></p>
               </div>
             `,
           });
