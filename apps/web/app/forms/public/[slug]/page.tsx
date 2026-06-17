@@ -4,6 +4,7 @@ import { PublicFormRenderer } from "~/components/forms/renderer/public-form-rend
 import { toRenderableForm } from "~/lib/form-data";
 import { api } from "~/trpc/server";
 import { userService } from "@repo/trpc/server/services";
+import type { FormSettings, FormTheme } from "~/types/form";
 
 export default async function PublicFormPage({
   params,
@@ -23,23 +24,12 @@ export default async function PublicFormPage({
 
   if (!result) notFound();
 
-  // Settings and theme are already properly typed, but can be null in TypeScript.
-  // We provide a fallback empty object so the type matches what toRenderableForm expects.
-  const safeResult = {
-    ...result,
-    form: {
-      ...result.form,
-      settings: result.form.settings ?? {},
-      theme: result.form.theme ?? {},
-    },
-  };
-
   // Analytics: track a view (fire-and-forget)
   api.forms.trackAnalytics
-    .mutate({ formId: safeResult.form.id, event: "view" })
+    .mutate({ formId: result.form.id, event: "view" })
     .catch(() => {});
 
-  const requireLogin = safeResult.form.settings.requireLogin === true;
+  const requireLogin = result.form.settings?.requireLogin === true;
 
   if (requireLogin) {
     const cookieStore = await cookies();
@@ -53,6 +43,16 @@ export default async function PublicFormPage({
       redirect(`/login?next=/forms/public/${slug}`);
     }
   }
+
+  // Ensure settings/theme are non-null for the renderer
+  const safeResult = {
+    ...result,
+    form: {
+      ...result.form,
+      settings: (result.form.settings ?? {}) as FormSettings,
+      theme: (result.form.theme ?? {}) as FormTheme,
+    },
+  };
 
   return <PublicFormRenderer form={toRenderableForm(safeResult)} />;
 }
