@@ -5,8 +5,8 @@ export interface FullFormPayload {
     id: string;
     title: string;
     description?: string | null;
-    settings: FormSettings;
-    theme: FormTheme;
+    settings: FormSettings | null;
+    theme: FormTheme | null;
   };
   pages: Array<FormPage & { fields?: FormField[] }>;
   fields?: FormField[];
@@ -21,9 +21,6 @@ export interface RenderableForm {
   pages: Array<FormPage & { fields: FormField[] }>;
 }
 
-/**
- * Make sure a value that could be a JSON‑string is converted to a plain object.
- */
 function normaliseJson(raw: unknown): Record<string, unknown> {
   if (raw === null || raw === undefined) return {};
   if (typeof raw === "string") {
@@ -37,15 +34,20 @@ function normaliseJson(raw: unknown): Record<string, unknown> {
 }
 
 export function toRenderableForm(payload: FullFormPayload): RenderableForm {
-  const fieldsByPage = new Map<string, FormField[]>();
+  // Normalise field-level settings so nothing is ever null
+  const normalisedFields: FormField[] = (payload.fields ?? []).map((f) => ({
+    ...f,
+    settings: (f.settings ?? {}) as FormField["settings"],
+  }));
 
-  for (const field of payload.fields ?? []) {
+  const fieldsByPage = new Map<string, FormField[]>();
+  for (const field of normalisedFields) {
     const pageFields = fieldsByPage.get(field.pageId) ?? [];
     pageFields.push(field);
     fieldsByPage.set(field.pageId, pageFields);
   }
 
-  // Normalise both settings and theme here so every consumer gets a real object
+  // Normalise form‑level settings and theme
   const settings = normaliseJson(payload.form.settings);
   const theme    = normaliseJson(payload.form.theme);
 
