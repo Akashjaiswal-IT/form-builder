@@ -1,5 +1,10 @@
 import type { FormField, FormPage, FormSettings, FormTheme } from "~/types/form";
 
+// Raw field shape from tRPC – settings may be null
+type RawFormField = Omit<FormField, "settings"> & {
+  settings: FormField["settings"] | null;
+};
+
 export interface FullFormPayload {
   form: {
     id: string;
@@ -8,8 +13,8 @@ export interface FullFormPayload {
     settings: FormSettings | null;
     theme: FormTheme | null;
   };
-  pages: Array<FormPage & { fields?: FormField[] }>;
-  fields?: FormField[];
+  pages: Array<FormPage & { fields?: RawFormField[] }>;
+  fields?: RawFormField[];
 }
 
 export interface RenderableForm {
@@ -34,7 +39,7 @@ function normaliseJson(raw: unknown): Record<string, unknown> {
 }
 
 export function toRenderableForm(payload: FullFormPayload): RenderableForm {
-  // Normalise field-level settings so nothing is ever null
+  // Normalise every field's settings so nothing is ever null
   const normalisedFields: FormField[] = (payload.fields ?? []).map((f) => ({
     ...f,
     settings: (f.settings ?? {}) as FormField["settings"],
@@ -59,7 +64,10 @@ export function toRenderableForm(payload: FullFormPayload): RenderableForm {
     theme: theme as unknown as FormTheme,
     pages: payload.pages.map((page) => ({
       ...page,
-      fields: page.fields ?? fieldsByPage.get(page.id) ?? [],
+      fields: (page.fields ?? fieldsByPage.get(page.id) ?? []).map((f) => ({
+        ...f,
+        settings: (f.settings ?? {}) as FormField["settings"],
+      })),
     })),
   };
 }

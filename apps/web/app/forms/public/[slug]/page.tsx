@@ -4,7 +4,6 @@ import { PublicFormRenderer } from "~/components/forms/renderer/public-form-rend
 import { toRenderableForm } from "~/lib/form-data";
 import { api } from "~/trpc/server";
 import { userService } from "@repo/trpc/server/services";
-import type { FormSettings, FormTheme } from "~/types/form";
 
 export default async function PublicFormPage({
   params,
@@ -44,15 +43,5 @@ export default async function PublicFormPage({
     }
   }
 
-  // Ensure settings/theme are non-null for the renderer
-  const safeResult = {
-    ...result,
-    form: {
-      ...result.form,
-      settings: (result.form.settings ?? {}) as FormSettings,
-      theme: (result.form.theme ?? {}) as FormTheme,
-    },
-  };
-
-  return <PublicFormRenderer form={toRenderableForm(safeResult)} />;
+  return <PublicFormRenderer form={toRenderableForm(result)} />;
 }
