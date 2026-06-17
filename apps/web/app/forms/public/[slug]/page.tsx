@@ -5,6 +5,8 @@ import { toRenderableForm, type FullFormPayload } from "~/lib/form-data";
 import { api } from "~/trpc/server";
 import { userService } from "@repo/trpc/server/services";
 
+export const dynamic = "force-dynamic";
+
 export default async function PublicFormPage({
   params,
 }: {
