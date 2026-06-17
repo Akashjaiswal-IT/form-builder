@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -23,6 +22,7 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldSeparator,
 } from "~/components/ui/field"
 import { Input } from "~/components/ui/input"
 import { trpc } from "~/trpc/client"
@@ -38,7 +38,6 @@ const signupSchema = z
       .regex(/[a-z]/, "Password must include a lowercase letter")
       .regex(/[0-9]/, "Password must include a number"),
     confirmPassword: z.string().min(1, "Confirm your password"),
-    profileImage: z.any().optional(),
   })
   .refine((values) => values.password === values.confirmPassword, {
     path: ["confirmPassword"],
@@ -47,17 +46,11 @@ const signupSchema = z
 
 type SignupFormValues = z.infer<typeof signupSchema>
 
-type UploadedImageKitFile = {
-  url?: string
-  fileId?: string
-}
-
 export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter()
-  const [isUploadingProfileImage, setIsUploadingProfileImage] = useState(false)
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
@@ -68,10 +61,12 @@ export function SignupForm({
     },
   })
 
-  const imageKitAuthQuery =
-    trpc.auth.getImageKitUploadAuthenticationParameters.useQuery(undefined, {
-      enabled: false,
-    })
+  // Fetch authentication providers so we can show Google if configured
+  const supportedProvidersQuery =
+    trpc.auth.getSupportedAuthenticationProviders.useQuery(undefined)
+  const googleProvider = supportedProvidersQuery.data?.find(
+    (provider) => provider.provider === "GOOGLE_OAUTH",
+  )
 
   const signUpMutation = trpc.auth.signUpWithEmailAndPassword.useMutation({
     onSuccess: (result) => {
@@ -83,83 +78,7 @@ export function SignupForm({
     },
   })
 
-  async function uploadProfileImage(file: File) {
-    if (!file.type.startsWith("image/")) {
-      throw new Error("Profile image must be an image file.")
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error("Profile image must be smaller than 5 MB.")
-    }
-
-    const authResult = await imageKitAuthQuery.refetch()
-
-    if (!authResult.data) {
-      throw new Error("Unable to prepare profile image upload.")
-    }
-
-    const fileName = `${globalThis.crypto.randomUUID()}-${file.name}`
-    const formData = new FormData()
-    formData.append("file", file)
-    formData.append("fileName", fileName)
-    formData.append("folder", "/form-builder/profiles")
-    formData.append("publicKey", authResult.data.publicKey)
-    formData.append("signature", authResult.data.signature)
-    formData.append("expire", String(authResult.data.expire))
-    formData.append("token", authResult.data.token)
-
-    const uploadResponse = await fetch(
-      "https://upload.imagekit.io/api/v1/files/upload",
-      {
-        method: "POST",
-        body: formData,
-      },
-    )
-
-    if (!uploadResponse.ok) {
-      throw new Error("Profile image upload failed.")
-    }
-
-    const uploadedFile = (await uploadResponse.json()) as UploadedImageKitFile
-
-    if (!uploadedFile.url) {
-      throw new Error("ImageKit did not return a profile image URL.")
-    }
-
-    return {
-      profileImageUrl: uploadedFile.url,
-      profileImageFileId: uploadedFile.fileId,
-    }
-  }
-
-  async function onSubmit(values: SignupFormValues) {
-    const file = values.profileImage?.[0] as File | undefined
-    let uploadedProfileImage:
-      | { profileImageUrl: string; profileImageFileId?: string }
-      | undefined
-
-    try {
-      if (file) {
-        setIsUploadingProfileImage(true)
-        uploadedProfileImage = await uploadProfileImage(file)
-      }
-
-      signUpMutation.mutate({
-        fullName: values.fullName,
-        email: values.email,
-        password: values.password,
-        ...uploadedProfileImage,
-      })
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Profile image upload failed.",
-      )
-    } finally {
-      setIsUploadingProfileImage(false)
-    }
-  }
-
-  const isSubmitting = signUpMutation.isPending || isUploadingProfileImage
+  const isSubmitting = signUpMutation.isPending
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -171,8 +90,38 @@ export function SignupForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form
+            onSubmit={form.handleSubmit((values) =>
+              signUpMutation.mutate(values),
+            )}
+          >
             <FieldGroup>
+              {/* Google OAuth button – only shown when credentials are configured */}
+              {googleProvider?.authUrl && (
+                <>
+                  <Field>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => {
+                        window.location.href = googleProvider.authUrl!
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path
+                          d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
+                          fill="currentColor"
+                        />
+                      </svg>
+                      Sign up with Google
+                    </Button>
+                  </Field>
+                  <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
+                    Or continue with
+                  </FieldSeparator>
+                </>
+              )}
+
               <Field>
                 <FieldLabel htmlFor="fullName">Full Name</FieldLabel>
                 <Input
@@ -196,20 +145,6 @@ export function SignupForm({
                   required
                 />
                 <FieldError errors={[form.formState.errors.email]} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="profileImage">
-                  Profile image optional
-                </FieldLabel>
-                <Input
-                  id="profileImage"
-                  type="file"
-                  accept="image/*"
-                  {...form.register("profileImage")}
-                />
-                <FieldDescription>
-                  Uploaded through ImageKit. Maximum size: 5 MB.
-                </FieldDescription>
               </Field>
               <Field>
                 <Field className="grid grid-cols-2 gap-4">
@@ -247,11 +182,7 @@ export function SignupForm({
               </Field>
               <Field>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isUploadingProfileImage
-                    ? "Uploading image..."
-                    : signUpMutation.isPending
-                      ? "Creating account..."
-                      : "Create Account"}
+                  {isSubmitting ? "Creating account..." : "Create Account"}
                 </Button>
                 <FieldDescription className="text-center">
                   Already have an account? <Link href="/login">Sign in</Link>

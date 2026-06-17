@@ -4,7 +4,7 @@ import {
 } from "@repo/services/user/model";
 import { z, zodUndefinedModel } from "../../schema";
 import { imageKitService, userService } from "../../services";
-import { publicProcedure, router } from "../../trpc";
+import { publicProcedure, protectedProcedure, router } from "../../trpc";
 import { generatePath } from "../../utils/path-generator";
 import {
   AUTH_SESSION_COOKIE_NAME,
@@ -175,5 +175,30 @@ export const authRouter = router({
     )
     .query(() => {
       return imageKitService.getUploadAuthenticationParameters();
+    }),
+
+      /** Update the current user's full name */
+  updateCurrentUser: protectedProcedure
+    .meta({ openapi: { method: "PATCH", path: getPath("/current-user") } })
+    .input(z.object({ fullName: z.string().min(1).max(120) }))
+    .output(authenticatedUserSchema)
+    .mutation(async ({ ctx, input }) => {
+      return userService.updateCurrentUser(ctx.user.id, input.fullName);
+    }),
+
+  /** Update the current user's profile image */
+  updateProfileImage: protectedProcedure
+    .meta({ openapi: { method: "PATCH", path: getPath("/profile-image") } })
+    .input(z.object({
+      profileImageUrl: z.string().url(),
+      profileImageFileId: z.string().optional(),
+    }))
+    .output(authenticatedUserSchema)
+    .mutation(async ({ ctx, input }) => {
+      return userService.updateUserProfileImage({
+        userId: ctx.user.id,
+        profileImageUrl: input.profileImageUrl,
+        profileImageFileId: input.profileImageFileId,
+      });
     }),
 });

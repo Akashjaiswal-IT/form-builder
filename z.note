@@ -1,0 +1,18 @@
+removed
+    from : packages/database/package
+    script : "dev": "dotenv -- drizzle-kit studio"
+
+run cmd : pnpm dev
+
+packages/trpc/server/auth/route -> procedure
+procedure => input output and mutation or query
+
+packages/trpc/server/index -> register authRouter in serverRouter
+
+packages/services/user/index -> write services
+
+apps/web/component/sign-up -> signup css + logic like pass didnot match
+
+
+
+webhook testing site : https://webhook.site/

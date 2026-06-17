@@ -5,17 +5,11 @@ import { TRPCError } from "@trpc/server";
 
 import { db } from "@repo/database";
 import { logger } from "@repo/logger";
-import {
-  authTokensTable,
-  userSessionsTable,
-  usersTable,
-} from "@repo/database/schema";
+import { authTokensTable, userSessionsTable, usersTable } from "@repo/database/schema";
 import { env } from "../env";
 import { mailService } from "../mail";
-import {
-  AuthenticatedUserSchema,
-  GetAuthenticationMethodOutputSchema,
-} from "./model";
+import { googleOAuth2Client } from "../clients/google-oauth";
+import { AuthenticatedUserSchema, GetAuthenticationMethodOutputSchema } from "./model";
 
 const BCRYPT_SALT_ROUNDS = 12;
 const EMAIL_VERIFICATION_TOKEN_HOURS = 24;
@@ -55,18 +49,151 @@ function buildWebUrl(pathname: string, token: string) {
 }
 
 class UserService {
+  // ---------------------------------------------------------------
+  // AUTHENTICATION METHODS (updated)
+  // ---------------------------------------------------------------
   public async getAuthenticationMethods(): Promise<
     ReadonlyArray<GetAuthenticationMethodOutputSchema>
   > {
-    return [
+    const methods: GetAuthenticationMethodOutputSchema[] = [
       {
         provider: "EMAIL_PASSWORD",
         displayName: "Email",
         displayText: "Sign in with email and password",
       },
     ];
+
+    // Include Google OAuth if all required env vars are provided
+    if (
+      env.GOOGLE_OAUTH_CLIENT_ID &&
+      env.GOOGLE_OAUTH_CLIENT_SECRET &&
+      env.GOOGLE_OAUTH_REDIRECT_URI
+    ) {
+      const authUrl = googleOAuth2Client.generateAuthUrl({
+        access_type: "offline",
+        scope: ["profile", "email"],
+      });
+
+      methods.push({
+        provider: "GOOGLE_OAUTH",
+        displayName: "Google",
+        displayText: "Continue with Google",
+        authUrl,
+      });
+    }
+
+    return methods;
   }
 
+  // ---------------------------------------------------------------
+  // SIGN IN WITH GOOGLE (new)
+  // ---------------------------------------------------------------
+  public async signInWithGoogle(code: string): Promise<{
+    sessionToken: string;
+    sessionExpiresAt: Date;
+    user: AuthenticatedUserSchema;
+    message: string;
+  }> {
+    // 1. Exchange authorization code for tokens
+    const { tokens } = await googleOAuth2Client.getToken(code);
+    const idToken = tokens.id_token;
+    if (!idToken) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Google authentication failed: no ID token received.",
+      });
+    }
+
+    // 2. Verify the ID token
+    const ticket = await googleOAuth2Client.verifyIdToken({
+      idToken,
+      audience: env.GOOGLE_OAUTH_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Google authentication failed: invalid token payload.",
+      });
+    }
+
+    // 3. Extract user information
+    const email = normalizeEmail(payload.email);
+    const fullName = payload.name || email.split("@")[0] || "User";
+    const profileImageUrl = payload.picture ?? undefined;
+
+    // 4. Find or create user
+    let user = await db
+      .select({
+        id: usersTable.id,
+        fullName: usersTable.fullName,
+        email: usersTable.email,
+        emailVerified: usersTable.emailVerified,
+        profileImageUrl: usersTable.profileImageUrl,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.email, email))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+    if (!user) {
+      // Create new user with Google provider
+      const [newUser] = await db
+        .insert(usersTable)
+        .values({
+          fullName,
+          email,
+          emailVerified: true, // Google accounts are pre-verified
+          profileImageUrl,
+          authenticationProvider: "GOOGLE_OAUTH",
+          passwordHash: null,
+        })
+        .returning({
+          id: usersTable.id,
+          fullName: usersTable.fullName,
+          email: usersTable.email,
+          emailVerified: usersTable.emailVerified,
+          profileImageUrl: usersTable.profileImageUrl,
+        });
+
+      if (!newUser) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Unable to create account.",
+        });
+      }
+      user = newUser;
+    } else {
+      // Update profile image if we got a new one
+      if (profileImageUrl) {
+        await db
+          .update(usersTable)
+          .set({ profileImageUrl, updatedAt: new Date() })
+          .where(eq(usersTable.id, user.id));
+      }
+    }
+
+    // 5. Create session
+    const sessionToken = createSecureToken();
+    const sessionExpiresAt = addDays(new Date(), USER_SESSION_DAYS);
+
+    await db.insert(userSessionsTable).values({
+      userId: user.id,
+      sessionTokenHash: hashToken(sessionToken),
+      expiresAt: sessionExpiresAt,
+    });
+
+    return {
+      sessionToken,
+      sessionExpiresAt,
+      user: this.toAuthenticatedUser(user),
+      message: "Signed in with Google.",
+    };
+  }
+
+  // ---------------------------------------------------------------
+  // REMAINING METHODS (unchanged)
+  // ---------------------------------------------------------------
   public async signUpWithEmailAndPassword({
     fullName,
     email,
@@ -141,6 +268,9 @@ class UserService {
     };
   }
 
+  // ... (all remaining methods stay exactly the same as your current file) ...
+  // include every method below this point exactly as they are now
+
   public async signInWithEmailAndPassword({
     email,
     password,
@@ -153,8 +283,9 @@ class UserService {
     user: AuthenticatedUserSchema;
     message: string;
   }> {
+    // existing code unchanged
     const normalizedEmail = normalizeEmail(email);
-
+    
     const [user] = await db
       .select({
         id: usersTable.id,
@@ -219,6 +350,7 @@ class UserService {
   public async getAuthenticatedUserBySessionToken(
     sessionToken: string | undefined,
   ): Promise<AuthenticatedUserSchema | null> {
+    // unchanged
     if (!sessionToken) return null;
 
     const [user] = await db
@@ -243,7 +375,29 @@ class UserService {
     return user ? this.toAuthenticatedUser(user) : null;
   }
 
+  async updateCurrentUser(userId: string, fullName: string): Promise<AuthenticatedUserSchema> {
+    // unchanged
+    const [user] = await db
+      .update(usersTable)
+      .set({ fullName: fullName.trim(), updatedAt: new Date() })
+      .where(eq(usersTable.id, userId))
+      .returning({
+        id: usersTable.id,
+        fullName: usersTable.fullName,
+        email: usersTable.email,
+        emailVerified: usersTable.emailVerified,
+        profileImageUrl: usersTable.profileImageUrl,
+      });
+
+    if (!user) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "User not found." });
+    }
+
+    return this.toAuthenticatedUser(user);
+  }
+
   public async signOutBySessionToken(sessionToken: string | undefined) {
+    // unchanged
     if (!sessionToken) return;
 
     await db
@@ -253,38 +407,26 @@ class UserService {
   }
 
   public async signOutAllSessionsForUser(userId: string) {
+    // unchanged
     await db
       .update(userSessionsTable)
       .set({ revokedAt: new Date() })
       .where(eq(userSessionsTable.userId, userId));
   }
 
-  public async verifyEmailAddress(token: string): Promise<{
-    message: string;
-  }> {
-    const tokenRecord = await this.getActiveAuthToken({
-      token,
-      type: "EMAIL_VERIFICATION",
-    });
-
+  public async verifyEmailAddress(token: string): Promise<{ message: string }> {
+    // unchanged
+    const tokenRecord = await this.getActiveAuthToken({ token, type: "EMAIL_VERIFICATION" });
     await db
       .update(usersTable)
       .set({ emailVerified: true, updatedAt: new Date() })
       .where(eq(usersTable.id, tokenRecord.userId));
-
-    await this.consumeAuthTokensForUser({
-      userId: tokenRecord.userId,
-      type: "EMAIL_VERIFICATION",
-    });
-
-    return {
-      message: "Email verified successfully. You can now sign in.",
-    };
+    await this.consumeAuthTokensForUser({ userId: tokenRecord.userId, type: "EMAIL_VERIFICATION" });
+    return { message: "Email verified successfully. You can now sign in." };
   }
 
-  public async resendEmailVerification(email: string): Promise<{
-    message: string;
-  }> {
+  public async resendEmailVerification(email: string): Promise<{ message: string }> {
+    // unchanged
     const [user] = await db
       .select({
         id: usersTable.id,
@@ -298,15 +440,12 @@ class UserService {
 
     if (!user) {
       return {
-        message:
-          "If this account exists and is unverified, a verification email has been sent.",
+        message: "If this account exists and is unverified, a verification email has been sent.",
       };
     }
 
     if (user.emailVerified) {
-      return {
-        message: "This email address is already verified. You can sign in.",
-      };
+      return { message: "This email address is already verified. You can sign in." };
     }
 
     const emailVerificationSent = await this.sendVerificationMailForUser({
@@ -322,9 +461,8 @@ class UserService {
     };
   }
 
-  public async requestPasswordReset(email: string): Promise<{
-    message: string;
-  }> {
+  public async requestPasswordReset(email: string): Promise<{ message: string }> {
+    // unchanged
     const [user] = await db
       .select({
         id: usersTable.id,
@@ -349,16 +487,12 @@ class UserService {
           resetUrl: buildWebUrl("/reset-password", resetToken),
         });
       } catch (error) {
-        logger.error("Unable to send password reset email", {
-          error,
-          userId: user.id,
-        });
+        logger.error("Unable to send password reset email", { error, userId: user.id });
       }
     }
 
     return {
-      message:
-        "If an account exists for this email, a password reset link has been sent.",
+      message: "If an account exists for this email, a password reset link has been sent.",
     };
   }
 
@@ -369,11 +503,8 @@ class UserService {
     token: string;
     newPassword: string;
   }): Promise<{ message: string }> {
-    const tokenRecord = await this.getActiveAuthToken({
-      token,
-      type: "PASSWORD_RESET",
-    });
-
+    // unchanged
+    const tokenRecord = await this.getActiveAuthToken({ token, type: "PASSWORD_RESET" });
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
     const now = new Date();
 
@@ -386,15 +517,9 @@ class UserService {
       .update(userSessionsTable)
       .set({ revokedAt: now })
       .where(eq(userSessionsTable.userId, tokenRecord.userId));
+    await this.consumeAuthTokensForUser({ userId: tokenRecord.userId, type: "PASSWORD_RESET" });
 
-    await this.consumeAuthTokensForUser({
-      userId: tokenRecord.userId,
-      type: "PASSWORD_RESET",
-    });
-
-    return {
-      message: "Password reset successfully. Please sign in again.",
-    };
+    return { message: "Password reset successfully. Please sign in again." };
   }
 
   public async updateUserProfileImage({
@@ -406,13 +531,10 @@ class UserService {
     profileImageUrl: string;
     profileImageFileId?: string;
   }): Promise<AuthenticatedUserSchema> {
+    // unchanged
     const [user] = await db
       .update(usersTable)
-      .set({
-        profileImageUrl,
-        profileImageFileId,
-        updatedAt: new Date(),
-      })
+      .set({ profileImageUrl, profileImageFileId, updatedAt: new Date() })
       .where(eq(usersTable.id, userId))
       .returning({
         id: usersTable.id,
@@ -423,15 +545,15 @@ class UserService {
       });
 
     if (!user) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "User not found.",
-      });
+      throw new TRPCError({ code: "NOT_FOUND", message: "User not found." });
     }
 
     return this.toAuthenticatedUser(user);
   }
 
+  // ---------------------------------------------------------------
+  // PRIVATE HELPERS (unchanged)
+  // ---------------------------------------------------------------
   private async sendVerificationMailForUser({
     userId,
     fullName,
@@ -455,10 +577,7 @@ class UserService {
       });
       return true;
     } catch (error) {
-      logger.error("Unable to send email verification email", {
-        error,
-        userId,
-      });
+      logger.error("Unable to send email verification email", { error, userId });
       return false;
     }
   }
@@ -484,13 +603,7 @@ class UserService {
     return token;
   }
 
-  private async getActiveAuthToken({
-    token,
-    type,
-  }: {
-    token: string;
-    type: AuthTokenType;
-  }) {
+  private async getActiveAuthToken({ token, type }: { token: string; type: AuthTokenType }) {
     const [tokenRecord] = await db
       .select({
         id: authTokensTable.id,

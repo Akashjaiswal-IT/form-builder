@@ -10,6 +10,11 @@ import { serverRouter, createContext, authenticatedUserSchema, getAuthentication
 
 import { env } from "./env";
 
+// ---------- Google OAuth imports ----------
+import { userService } from "@repo/trpc/server/services";
+import { setAuthSessionCookie } from "@repo/trpc/server/utils/auth-cookie";
+// ------------------------------------------
+
 export const app = express();
 const openApiDocument = generateOpenApiDocument(serverRouter, {
   title: "Form Builder OpenAPI",
@@ -21,7 +26,6 @@ const openApiDocument = generateOpenApiDocument(serverRouter, {
   },
 });
 
-
 app.use(
   cors({
     origin: env.WEB_APP_URL,
@@ -30,6 +34,39 @@ app.use(
 );
 
 app.use(express.json());
+
+// ---------- Google OAuth Callback ----------
+app.get(
+  "/api/auth/google/callback",
+  async (req: express.Request, res: express.Response) => {
+    try {
+      const { code } = req.query;
+
+      if (!code || typeof code !== "string") {
+        return res.redirect(
+          `${env.WEB_APP_URL}/login?error=Missing%20authorization%20code`,
+        );
+      }
+
+      const result = await userService.signInWithGoogle(code);
+
+      setAuthSessionCookie({
+        res,
+        sessionToken: result.sessionToken,
+        expiresAt: result.sessionExpiresAt,
+        isProduction: env.NODE_ENV === "production",
+      });
+
+      res.redirect(`${env.WEB_APP_URL}/forms`);
+    } catch (error) {
+      logger.error("Google OAuth callback failed", { error });
+      res.redirect(
+        `${env.WEB_APP_URL}/login?error=Google%20authentication%20failed`,
+      );
+    }
+  },
+);
+// ------------------------------------------
 
 app.get("/", (req, res) => {
   return res.json({ message: "Form Builder is up and running..." });

@@ -1,0 +1,4 @@
+ALTER TABLE "forms" ALTER COLUMN "settings" SET DEFAULT '{"allowMultipleSubmissions":false,"showProgressBar":true,"shuffleFields":false,"submitButtonText":"Submit","successMessage":"Thank you for your submission!","redirectUrl":null,"closedMessage":"This form is no longer accepting responses.","requireLogin":false,"limitResponses":null,"startDate":null,"endDate":null,"notifyOnResponse":false}'::jsonb;--> statement-breakpoint
+ALTER TABLE "form_templates" ADD COLUMN "user_id" uuid;--> statement-breakpoint
+ALTER TABLE "form_templates" ADD CONSTRAINT "form_templates_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "form_templates_user_id_idx" ON "form_templates" USING btree ("user_id");

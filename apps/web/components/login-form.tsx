@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -39,6 +39,11 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Determine where to redirect after successful login
+  const next = searchParams.get("next") ?? "/forms"
+
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -56,7 +61,7 @@ export function LoginForm({
   const signInMutation = trpc.auth.signInWithEmailAndPassword.useMutation({
     onSuccess: (result) => {
       toast.success(result.message)
-      router.push("/")
+      router.push(next)
       router.refresh()
     },
     onError: (error) => {

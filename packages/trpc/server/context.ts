@@ -6,6 +6,7 @@ export interface AppRequest {
 }
 
 export interface AppResponse {
+  append(header: "Set-Cookie", value: string): void;
   setHeader(name: string, value: string | string[]): void;
   clearCookie?(name: string, options?: object): void;
 }
