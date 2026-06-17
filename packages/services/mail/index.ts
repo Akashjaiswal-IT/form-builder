@@ -1,17 +1,23 @@
+// packages/services/mail/index.ts
 import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 import { logger } from "@repo/logger";
 
-import { env } from "../env";
+let _transporter: Transporter | null = null;
 
-const transporter = nodemailer.createTransport({
-  host: env.SMTP_HOST,
-  port: env.SMTP_PORT,
-  secure: env.SMTP_PORT === 465,
-  auth: {
-    user: env.SMTP_USER,
-    pass: env.SMTP_PASSWORD,
-  },
-});
+function getTransporter(): Transporter {
+  if (_transporter) return _transporter;
+  _transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "localhost",
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: Number(process.env.SMTP_PORT) === 465,
+    auth: {
+      user: process.env.SMTP_USER || "",
+      pass: process.env.SMTP_PASSWORD || "",
+    },
+  });
+  return _transporter;
+}
 
 type SendMailInput = {
   to: string;
@@ -36,8 +42,11 @@ function escapeHtml(value: string) {
 
 class MailService {
   public async sendMail({ to, subject, text, html }: SendMailInput) {
+    const transporter = getTransporter();
+    const fromName = process.env.SMTP_FROM_NAME || "Form Builder";
+    const fromEmail = process.env.SMTP_FROM_EMAIL || "noreply@example.com";
     const info = await transporter.sendMail({
-      from: `"${env.SMTP_FROM_NAME}" <${env.SMTP_FROM_EMAIL}>`,
+      from: `"${fromName}" <${fromEmail}>`,
       to,
       subject,
       text,
