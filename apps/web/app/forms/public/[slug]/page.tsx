@@ -23,15 +23,23 @@ export default async function PublicFormPage({
 
   if (!result) notFound();
 
-  // Settings and theme are already properly typed (FormSettings | null) thanks to the tRPC output schema.
-  // No need to parse JSON strings – Drizzle/jsonb already returns objects, and tRPC serialises them correctly.
+  // Settings and theme are already properly typed, but can be null in TypeScript.
+  // We provide a fallback empty object so the type matches what toRenderableForm expects.
+  const safeResult = {
+    ...result,
+    form: {
+      ...result.form,
+      settings: result.form.settings ?? {},
+      theme: result.form.theme ?? {},
+    },
+  };
 
   // Analytics: track a view (fire-and-forget)
   api.forms.trackAnalytics
-    .mutate({ formId: result.form.id, event: "view" })
+    .mutate({ formId: safeResult.form.id, event: "view" })
     .catch(() => {});
 
-  const requireLogin = result.form.settings?.requireLogin === true;
+  const requireLogin = safeResult.form.settings.requireLogin === true;
 
   if (requireLogin) {
     const cookieStore = await cookies();
@@ -46,5 +54,5 @@ export default async function PublicFormPage({
     }
   }
 
-  return <PublicFormRenderer form={toRenderableForm(result)} />;
+  return <PublicFormRenderer form={toRenderableForm(safeResult)} />;
 }
