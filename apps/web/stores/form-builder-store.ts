@@ -50,6 +50,9 @@ export interface FormBuilderState {
   isSaving: boolean;
   history: BuilderFormSchema[];
   historyIndex: number;
+  // Mobile sheet visibility
+  isPaletteOpen: boolean;
+  isPropertiesOpen: boolean;
 }
 
 interface FormBuilderActions {
@@ -99,6 +102,10 @@ interface FormBuilderActions {
   markClean: () => void;
   setSaving: (isSaving: boolean) => void;
   getFormData: () => { title: string; description: string; schema: BuilderFormSchema };
+
+  // Mobile sheet controls
+  setIsPaletteOpen: (open: boolean) => void;
+  setIsPropertiesOpen: (open: boolean) => void;
 }
 
 // ============================================================
@@ -159,6 +166,8 @@ function createInitialState(): FormBuilderState {
       ),
     ],
     historyIndex: 0,
+    isPaletteOpen: false,
+    isPropertiesOpen: false,
   };
 }
 
@@ -177,6 +186,19 @@ function pushHistory(state: FormBuilderState) {
 export const useFormBuilderStore = create<FormBuilderState & FormBuilderActions>()(
   immer((set, get) => ({
     ...createInitialState(),
+
+    // Mobile sheet controls
+    setIsPaletteOpen: (open) =>
+      set((state: FormBuilderState) => {
+        state.isPaletteOpen = open;
+        if (open) state.isPropertiesOpen = false;
+      }),
+
+    setIsPropertiesOpen: (open) =>
+      set((state: FormBuilderState) => {
+        state.isPropertiesOpen = open;
+        if (open) state.isPaletteOpen = false;
+      }),
 
     initializeForm: (data) => {
       set((state: FormBuilderState) => {
@@ -392,7 +414,6 @@ export const useFormBuilderStore = create<FormBuilderState & FormBuilderActions>
     },
 
     updateField: async (fieldId, data) => {
-      // Optimistic local update (always applied)
       set((state: FormBuilderState) => {
         for (const page of state.schema.pages) {
           const field = page.fields.find((f) => f.id === fieldId);
@@ -405,7 +426,6 @@ export const useFormBuilderStore = create<FormBuilderState & FormBuilderActions>
         }
       });
 
-      // If the label is being cleared, don't call the API yet.
       if (data.label !== undefined && data.label.trim().length === 0) {
         return;
       }
@@ -448,7 +468,6 @@ export const useFormBuilderStore = create<FormBuilderState & FormBuilderActions>
         if (!field) return;
 
         set((state: FormBuilderState) => {
-          // Remove from source page
           for (const page of state.schema.pages) {
             const idx = page.fields.findIndex((f) => f.id === fieldId);
             if (idx !== -1) {
@@ -457,7 +476,6 @@ export const useFormBuilderStore = create<FormBuilderState & FormBuilderActions>
               break;
             }
           }
-          // Insert into target page
           const targetPage = state.schema.pages.find((p) => p.id === targetPageId);
           if (targetPage) {
             const moved = { ...field, position: targetIndex };
@@ -611,7 +629,6 @@ export const useFormBuilderStore = create<FormBuilderState & FormBuilderActions>
     // CONDITIONAL LOGIC
     // ============================================
     updateFieldConditionalLogic: async (fieldId, logic) => {
-      // Only persist to backend if there is at least one condition
       if (logic && logic.conditions.length > 0) {
         try {
           await api.forms.updateField.mutate({
@@ -623,7 +640,6 @@ export const useFormBuilderStore = create<FormBuilderState & FormBuilderActions>
           return;
         }
       }
-      // Always update local state
       set((state: FormBuilderState) => {
         for (const page of state.schema.pages) {
           const field = page.fields.find((f) => f.id === fieldId);

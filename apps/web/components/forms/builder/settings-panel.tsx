@@ -50,7 +50,7 @@ function toUtcStorage(localValue: string): string | null {
   return new Date(localValue).toISOString();
 }
 
-export function SettingsPanel() {
+export function SettingsPanel({ triggerId }: { triggerId?: string }) {
   const [open, setOpen] = useState(false);
   const schema = useFormBuilderStore((s) => s.schema);
   const updateSettings = useFormBuilderStore((s) => s.updateSettings);
@@ -66,7 +66,7 @@ export function SettingsPanel() {
       <Tooltip>
         <TooltipTrigger asChild>
           <DialogTrigger asChild>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" id={triggerId}>
               <Settings className="size-4" />
             </Button>
           </DialogTrigger>

@@ -143,7 +143,7 @@ export default function AnalyticsPage() {
   return (
     <div className="max-w-5xl mx-auto py-6 px-4 space-y-6">
       <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link href={`/forms/${formId}`}>
+        <Link href={`/forms`}>
           <ArrowLeft className="size-4 mr-1" />
           Back to form
         </Link>

@@ -1,3 +1,5 @@
+// web/components/forms/builder/canvas.tsx
+
 "use client";
 
 import { useCallback } from "react";
@@ -9,6 +11,7 @@ import { cn } from "~/lib/utils";
 import { useFormBuilderStore } from "~/stores/form-builder-store";
 import type { FormBuilderState } from "~/stores/form-builder-store";
 import { FIELD_META } from "~/lib/field-registry";
+import { useIsMobile } from "~/hooks/use-mobile";
 import type { BuilderField } from "~/types/form";
 
 import {
@@ -22,7 +25,6 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   ChevronDown, ListChecks, Circle, CheckSquare, Square, Upload, PenTool,
   Star, SlidersHorizontal, Heading, Text, Minus, EyeOff,
 };
-
 
 export function Canvas() {
   const selectedPageId = useFormBuilderStore((s: FormBuilderState) => s.selectedPageId);
@@ -71,23 +73,26 @@ export function Canvas() {
   if (!currentPage) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground">
-        No page selected.
+        <p className="text-base md:text-sm">No page selected.</p>
       </div>
     );
   }
 
   if (fields.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-2 text-muted-foreground">
-        <p className="text-sm">No fields on this page.</p>
-        <p className="text-xs">Drag fields from the palette.</p>
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground p-6">
+        <p className="text-base md:text-sm">No fields on this page.</p>
+        <p className="text-sm md:text-xs text-center">
+          Tap the <strong>Fields</strong> button to open the palette and add
+          your first field.
+        </p>
       </div>
     );
   }
 
   return (
     <ScrollArea className="h-full min-h-0">
-      <div className="p-4 space-y-2">
+      <div className="p-3 md:p-4 space-y-2 pb-6">
         {fields.map((field) => (
           <CanvasField
             key={field.id}
@@ -127,6 +132,7 @@ function CanvasField({
   onDragOver,
   onDrop,
 }: CanvasFieldProps) {
+  const isMobile = useIsMobile();
   const meta = FIELD_META[field.type];
   const isLayout = meta?.isLayoutElement ?? false;
 
@@ -143,64 +149,75 @@ function CanvasField({
       onDragOver={onDragOver}
       onDrop={onDrop}
       className={cn(
-        "group relative flex items-center gap-3 rounded-lg border bg-card p-3 text-sm transition-all",
+        "group relative flex items-center gap-3 rounded-lg border bg-card text-sm transition-all",
+        // Smaller on mobile, normal on desktop
+        "p-2.5 min-h-[44px] md:p-3 md:min-h-0",
         isSelected
           ? "border-primary ring-1 ring-primary/20"
           : "border-border hover:border-accent-foreground/20",
         isLayout && "bg-muted/30 italic",
       )}
     >
-      <div className="cursor-grab active:cursor-grabbing text-muted-foreground/60 hover:text-muted-foreground">
-        <GripVertical className="size-4" />
+      {/* Drag handle – smaller on mobile */}
+      <div className="cursor-grab active:cursor-grabbing text-muted-foreground/60 hover:text-muted-foreground touch-none shrink-0">
+        <GripVertical className="size-4 md:size-4" />
       </div>
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-muted">
-        <FieldIcon type={field.type} />
+
+      {/* Type icon – smaller container on mobile */}
+      <div className="flex size-8 md:size-8 shrink-0 items-center justify-center rounded-md border bg-muted">
+        <FieldIcon type={field.type} className="size-4 md:size-4" />
       </div>
+
+      {/* Label + subtext – smaller text on mobile */}
       <div className="flex-1 min-w-0">
-        <p className={cn("font-medium truncate", isLayout && "text-muted-foreground")}>
+        <p className={cn("font-medium truncate text-sm md:text-sm", isLayout && "text-muted-foreground")}>
           {field.label || "Untitled"}
         </p>
-        <p className="text-xs text-muted-foreground truncate">
-          {meta?.label ?? field.type} {field.required && "• Required"}
+        <p className="text-xs md:text-xs text-muted-foreground truncate">
+          {meta?.label ?? field.type}{field.required && " • Required"}
         </p>
       </div>
+
+      {/* Action buttons – always visible on mobile, hover-revealed on desktop */}
       <div
         className={cn(
-          "flex items-center gap-1 opacity-0 transition-opacity",
-          (isSelected || "group-hover:opacity-100") && "opacity-100",
+          "flex items-center gap-0.5 transition-opacity shrink-0",
+          isMobile || isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
         )}
       >
         <Button
           type="button"
           variant="ghost"
-          size="icon-xs"
+          size="icon"
+          className="h-7 w-7 md:h-7 md:w-7"
           onClick={(e) => {
             e.stopPropagation();
             onDuplicate();
           }}
-          title="Duplicate field"
+          aria-label="Duplicate field"
         >
-          <Copy className="size-3.5" />
+          <Copy className="size-3.5 md:size-3.5" />
         </Button>
         <Button
           type="button"
           variant="ghost"
-          size="icon-xs"
+          size="icon"
+          className="h-7 w-7 md:h-7 md:w-7"
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
-          title="Delete field"
+          aria-label="Delete field"
         >
-          <Trash2 className="size-3.5 text-destructive" />
+          <Trash2 className="size-3.5 md:size-3.5 text-destructive" />
         </Button>
       </div>
     </div>
   );
 }
 
-function FieldIcon({ type }: { type: string }) {
+function FieldIcon({ type, className }: { type: string; className?: string }) {
   const iconName = FIELD_META[type as keyof typeof FIELD_META]?.icon ?? "Type";
   const Icon = ICON_MAP[iconName] ?? Type;
-  return <Icon className="size-4" />;
+  return <Icon className={className} />;
 }

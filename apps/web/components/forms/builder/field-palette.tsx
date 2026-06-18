@@ -1,3 +1,5 @@
+// /web/components/forms/builder/field-palette.tsx
+
 "use client";
 
 import { useState } from "react";
@@ -39,7 +41,6 @@ import { cn } from "~/lib/utils";
 import { FIELD_CATEGORIES, type FieldType } from "~/types/form";
 import { FIELD_META } from "~/lib/field-registry";
 
-// Map the field-type icons (Lucide component names) to actual components
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Type,
   AlignLeft,
@@ -70,9 +71,6 @@ interface FieldPaletteProps {
   disabled?: boolean;
 }
 
-/**
- * Pallete of draggable field types, grouped by category, with search.
- */
 export function FieldPalette({ onAddField, disabled = false }: FieldPaletteProps) {
   const [search, setSearch] = useState("");
 
@@ -93,22 +91,25 @@ export function FieldPalette({ onAddField, disabled = false }: FieldPaletteProps
 
   return (
     <div className="h-full min-h-0 flex flex-col">
+      {/* Search bar */}
       <div className="shrink-0 p-2">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search fields..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-9 text-sm"
+            className="pl-8 h-10 md:h-9 text-sm"
           />
         </div>
       </div>
+
+      {/* Field type accordion */}
       <ScrollArea className="flex-1 min-h-0 overscroll-contain">
         <Accordion type="multiple" defaultValue={["basic", "choice", "datetime"]}>
           {filteredCategories.map(({ category, types }) => (
             <AccordionItem key={category} value={category}>
-              <AccordionTrigger className="px-2 text-sm font-medium">
+              <AccordionTrigger className="px-2 py-3 md:py-2 text-sm font-medium">
                 {category.charAt(0).toUpperCase() + category.slice(1)}
               </AccordionTrigger>
               <AccordionContent>
@@ -123,17 +124,26 @@ export function FieldPalette({ onAddField, disabled = false }: FieldPaletteProps
                         disabled={disabled}
                         onClick={() => onAddField(type)}
                         className={cn(
-                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors text-left",
+                          // Base styles
+                          "flex items-center gap-3 rounded-md px-3 text-sm transition-colors text-left",
+                          // Larger touch targets on mobile, normal on desktop
+                          "py-3 md:py-2",
+                          "min-h-[48px] md:min-h-0",
                           "hover:bg-accent hover:text-accent-foreground",
+                          "active:bg-accent/80",
                           disabled && "opacity-50 cursor-not-allowed",
                         )}
                       >
-                        <div className="flex size-8 items-center justify-center rounded-md border bg-muted">
-                          <Icon className="size-4" />
+                        {/* Icon */}
+                        <div className="flex size-10 md:size-8 items-center justify-center rounded-md border bg-muted shrink-0">
+                          <Icon className="size-5 md:size-4" />
                         </div>
+                        {/* Label + description */}
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{meta.label}</div>
-                          <div className="text-xs text-muted-foreground truncate">
+                          <div className="font-medium truncate text-base md:text-sm">
+                            {meta.label}
+                          </div>
+                          <div className="text-sm md:text-xs text-muted-foreground truncate">
                             {meta.description}
                           </div>
                         </div>
