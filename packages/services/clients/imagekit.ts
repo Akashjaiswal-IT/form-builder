@@ -21,6 +21,7 @@ export function getImageKitClient(config: {
 class ImageKitService {
   public getUploadAuthenticationParameters(config: {
     publicKey?: string;
+    privateKey?: string;
     urlEndpoint?: string;
   }) {
     const client = getImageKitClient(config);
