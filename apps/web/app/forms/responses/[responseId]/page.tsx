@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -70,6 +70,39 @@ function ResponseContent({ responseId, formId }: { responseId: string; formId: s
     return map;
   }, [formData]);
 
+  const handleDownload = () => {
+    if (!response) return;
+
+    const exportData: Record<string, unknown> = {
+      responseId: response.id,
+      status: response.status,
+      ipAddress: response.ipAddress,
+      userAgent: response.userAgent,
+      startedAt: response.startedAt,
+      completedAt: response.completedAt,
+      createdAt: response.createdAt,
+      fields: {},
+    };
+
+    if (response.data) {
+      for (const item of response.data) {
+        const fieldName = fieldMap.get(item.fieldId) ?? item.fieldId;
+        (exportData.fields as Record<string, unknown>)[fieldName] = item.value;
+      }
+    }
+
+    const json = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `response-${responseId.slice(0, 8)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (responseQuery.isPending || formQuery.isPending) return <ResponseDetailSkeleton />;
   if (responseQuery.isError || formQuery.isError)
     return <div className="text-destructive text-center">Failed to load response details.</div>;
@@ -83,6 +116,9 @@ function ResponseContent({ responseId, formId }: { responseId: string; formId: s
           <Link href={`/forms/${formId}/responses`}>
             <ArrowLeft className="size-4 mr-1" /> Back to responses
           </Link>
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleDownload}>
+          <Download className="size-4 mr-1" /> Download
         </Button>
       </div>
 
