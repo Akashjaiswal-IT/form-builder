@@ -3,8 +3,20 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Plus, FileText, MoreHorizontal, Eye, Copy, Trash2, Code,
-  Link2, Lock, QrCode, Archive, ArrowRight, BarChart2, Webhook,
+  Plus,
+  FileText,
+  MoreHorizontal,
+  Eye,
+  Copy,
+  Trash2,
+  Code,
+  Link2,
+  Lock,
+  QrCode,
+  Archive,
+  ArrowRight,
+  BarChart2,
+  Webhook,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -53,16 +65,24 @@ type Form = {
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<FormStatus, {
-  label: string;
-  borderColor: string;
-  dotClass: string;
-  pulse: boolean;
-}> = {
-  DRAFT:     { label: "Draft",     borderColor: "#9ca3af", dotClass: "bg-gray-400",     pulse: false },
-  PUBLISHED: { label: "Published", borderColor: "#10b981", dotClass: "bg-emerald-500",  pulse: true  },
-  CLOSED:    { label: "Closed",    borderColor: "#f97316", dotClass: "bg-orange-500",   pulse: false },
-  ARCHIVED:  { label: "Archived",  borderColor: "#ef4444", dotClass: "bg-red-500",      pulse: false },
+const STATUS_CONFIG: Record<
+  FormStatus,
+  {
+    label: string;
+    borderColor: string;
+    dotClass: string;
+    pulse: boolean;
+  }
+> = {
+  DRAFT: { label: "Draft", borderColor: "#9ca3af", dotClass: "bg-gray-400", pulse: false },
+  PUBLISHED: {
+    label: "Published",
+    borderColor: "#10b981",
+    dotClass: "bg-emerald-500",
+    pulse: true,
+  },
+  CLOSED: { label: "Closed", borderColor: "#f97316", dotClass: "bg-orange-500", pulse: false },
+  ARCHIVED: { label: "Archived", borderColor: "#ef4444", dotClass: "bg-red-500", pulse: false },
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -110,9 +130,7 @@ export default function FormsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Forms</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Manage and create forms.
-          </p>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage and create forms.</p>
         </div>
         <Button asChild>
           <Link href="/forms/new">
@@ -134,25 +152,32 @@ function FormList() {
   const formsQuery = trpc.forms.list.useQuery({ limit: 50 });
 
   const deleteMutation = trpc.forms.delete.useMutation({
-    onSuccess: () => { toast.success("Form deleted."); void utils.forms.list.invalidate(); },
+    onSuccess: () => {
+      toast.success("Form deleted.");
+      void utils.forms.list.invalidate();
+    },
     onError: (e) => toast.error(e.message),
   });
 
   const duplicateMutation = trpc.forms.duplicate.useMutation({
-    onSuccess: (d) => { toast.success(d.message); void utils.forms.list.invalidate(); },
+    onSuccess: (d) => {
+      toast.success(d.message);
+      void utils.forms.list.invalidate();
+    },
     onError: (e) => toast.error(e.message),
   });
 
   const archiveMutation = trpc.forms.archive.useMutation({
-    onSuccess: () => { toast.success("Form archived."); void utils.forms.list.invalidate(); },
+    onSuccess: () => {
+      toast.success("Form archived.");
+      void utils.forms.list.invalidate();
+    },
     onError: (e) => toast.error(e.message),
   });
 
   if (formsQuery.isPending) return <FormListSkeleton />;
   if (formsQuery.isError)
-    return (
-      <p className="text-destructive text-center py-12">Failed to load forms.</p>
-    );
+    return <p className="text-destructive text-center py-12">Failed to load forms.</p>;
 
   const forms = (formsQuery.data?.forms ?? []) as Form[];
 
@@ -212,11 +237,13 @@ function FormCard({
   const url = publicUrl(form.slug);
 
   function copyLink() {
-    void navigator.clipboard.writeText(url).then(() =>
-      toast.success(
-        form.settings?.requireLogin ? "Authenticated link copied" : "Public link copied",
-      ),
-    );
+    void navigator.clipboard
+      .writeText(url)
+      .then(() =>
+        toast.success(
+          form.settings?.requireLogin ? "Authenticated link copied" : "Public link copied",
+        ),
+      );
   }
 
   return (
@@ -227,8 +254,8 @@ function FormCard({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this form?</AlertDialogTitle>
             <AlertDialogDescription>
-              <span className="font-medium">{form.title || "This form"}</span> and all its
-              responses will be permanently deleted. This cannot be undone.
+              <span className="font-medium">{form.title || "This form"}</span> and all its responses
+              will be permanently deleted. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -268,7 +295,6 @@ function FormCard({
       >
         {/* Body */}
         <div className="flex-1 flex flex-col gap-3 p-4 pb-3">
-
           {/* Status row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -279,9 +305,7 @@ function FormCard({
                   cfg.pulse ? "animate-pulse" : "",
                 ].join(" ")}
               />
-              <span className="text-xs font-medium text-muted-foreground">
-                {cfg.label}
-              </span>
+              <span className="text-xs font-medium text-muted-foreground">{cfg.label}</span>
             </div>
 
             <DropdownMenu>
@@ -312,6 +336,11 @@ function FormCard({
                     <BarChart2 className="size-4 mr-2" /> Analytics
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`/forms/${form.id}/responses`}>
+                    <BarChart2 className="size-4 mr-2" /> Responses
+                  </Link>
+                </DropdownMenuItem>
                 {/* ---- NEW: Webhooks ---- */}
                 <DropdownMenuItem asChild>
                   <Link href={`/forms/${form.id}/webhooks`}>
@@ -329,9 +358,11 @@ function FormCard({
                   <Code className="size-4 mr-2" /> Embed
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={copyLink}>
-                  {form.settings?.requireLogin
-                    ? <Lock className="size-4 mr-2" />
-                    : <Link2 className="size-4 mr-2" />}
+                  {form.settings?.requireLogin ? (
+                    <Lock className="size-4 mr-2" />
+                  ) : (
+                    <Link2 className="size-4 mr-2" />
+                  )}
                   Copy link
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -388,12 +419,7 @@ function FormCard({
               <Eye className="size-3.5 mr-1" /> Preview
             </Link>
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={copyLink}
-          >
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={copyLink}>
             <Link2 className="size-3.5 mr-1" /> Share
           </Button>
           <Button size="sm" className="h-7 px-2.5 text-xs" asChild>
