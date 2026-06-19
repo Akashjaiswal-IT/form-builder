@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
+  Inbox,
   Plus,
   FileText,
   MoreHorizontal,
@@ -338,7 +339,7 @@ function FormCard({
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href={`/forms/${form.id}/responses`}>
-                    <BarChart2 className="size-4 mr-2" /> Responses
+                    <Inbox className="size-4 mr-2" /> Responses
                   </Link>
                 </DropdownMenuItem>
                 {/* ---- NEW: Webhooks ---- */}

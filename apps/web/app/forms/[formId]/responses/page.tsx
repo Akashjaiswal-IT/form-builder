@@ -211,8 +211,8 @@ function ResponseList({ formId }: { formId: string }) {
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-4">
         <Button variant="outline" size="sm" asChild>
-          <Link href={`/forms/${formId}`}>
-            <ArrowLeft className="size-4 mr-1" /> Back to builder
+          <Link href={`/forms`}>
+            <ArrowLeft className="size-4 mr-1" /> Back to Forms
           </Link>
         </Button>
         <Button
